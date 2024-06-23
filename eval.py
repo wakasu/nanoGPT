@@ -7,7 +7,7 @@ import tiktoken
 import math
 from contextlib import nullcontext
 
-def initialize_device(seed, device, dtype):
+def initialize_device(seed, device):
     """
     Initialize the device and set seeds.
     """
@@ -16,8 +16,8 @@ def initialize_device(seed, device, dtype):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     device_type = 'cuda' if 'cuda' in device else 'cpu'
-    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
-    return device_type, ptdtype
+    dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32' or 'bfloat16' or 'float16'
+    return device_type, dtype
 
 def get_batch(data_dir, dataset, split, batch_size, block_size, device_type, device):
     """
@@ -74,39 +74,26 @@ def main():
     """
     batch_size = 12
     block_size = 1024
-    bias = False
-    real_data = True
     eval_iters = 200
     seed = 1337
     device = 'cuda'
-    dtype = 'bfloat16'
     compile = True
     data_dir='data/enwik8'
     dataset='enwik8'
     enc = tiktoken.get_encoding("gpt2")
-    decode = lambda l: enc.decode(l)# -----------------------------------------------------------------------------
-    init_from = 'resume' # either 'resume' (from an out_dir) or a gpt2 variant (e.g. 'gpt2-xl')
+    decode = lambda l: enc.decode(l)
     # out_dir = 'out_3mods_2000iter'
     out_dir = 'out_org_2000iter'
-    batch_size = 24
-    block_size = 1024
-    bias = False
-    real_data = True
-    eval_iters = 200
-    seed = 1337
     device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc.
-    dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16' # 'float32' or 'bfloat16' or 'float16'
     compile = True # use PyTorch 2.0 to compile the model to be faster
-    profile = False # use pytorch profiler, or just simple benchmarking?
     exec(open('configurator.py').read()) # overrides from command line or config file
-
 
     # data loading init
     dataset = 'enwik8'
     data_dir = os.path.join('data', dataset)
 
     exec(open('configurator.py').read())
-    device_type, ptdtype = initialize_device(seed=1337, device='cuda', dtype='bfloat16')
+    device_type, dtype = initialize_device(seed, device)
     ckpt_path = os.path.join(out_dir, 'ckpt.pt')
     model = load_model(ckpt_path, device=device, compile=compile)
     # losses = estimate_loss()
